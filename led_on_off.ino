@@ -92,7 +92,7 @@ void MQTTcallback(char* topic, byte* payload, unsigned int length) {
 void loop() {
  if (!client.connected()) {
     long now = millis();
-    if (now - lastReconnectAttempt > 5000) {
+    if (now - lastReconnectAttempt > 2000) {
       lastReconnectAttempt = now;
       // Attempt to reconnect
       if (reconnect()) {

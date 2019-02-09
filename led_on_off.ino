@@ -7,6 +7,7 @@
 //Enter your wifi credentials
 const char* ssid = "OPENCLOUDS";  
 const char* password =  "1234567889";
+long lastReconnectAttempt = 0;
  
 //Enter your mqtt server configurations
 const char* mqttServer = "live.openclouds.in";    //Enter Your mqttServer address
@@ -21,13 +22,13 @@ void setup() {
   delay(1000);
   pinMode(LED,OUTPUT);
   Serial.begin(115200);
- 
   WiFi.begin(ssid, password);
  
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.println("Connecting to WiFi..");
   }
+  
   Serial.print("Connected to WiFi :");
   Serial.println(WiFi.SSID());
  
@@ -36,23 +37,28 @@ void setup() {
  
   while (!client.connected()) {
     Serial.println("Connecting to MQTT...");
- 
     if (client.connect("ESP8266")) {
- 
       Serial.println("connected");  
- 
     } else {
- 
       Serial.print("failed with state ");
       Serial.println(client.state());  //If you get state 5: mismatch in configuration
       delay(2000);
- 
     }
   }
  
   client.publish("esp/test", "Hello from ESP8266");
   client.subscribe("esp/test");
  
+}
+
+boolean reconnect() {
+  if (client.connect("ESP8266")) {
+    // Once connected, publish an announcement...
+    client.publish("esp/test","reconnect");
+    // ... and resubscribe
+    client.subscribe("esp/test");
+  }
+  return client.connected();
 }
  
 void MQTTcallback(char* topic, byte* payload, unsigned int length) {
@@ -84,5 +90,18 @@ void MQTTcallback(char* topic, byte* payload, unsigned int length) {
 }
  
 void loop() {
-  client.loop();
+ if (!client.connected()) {
+    long now = millis();
+    if (now - lastReconnectAttempt > 5000) {
+      lastReconnectAttempt = now;
+      // Attempt to reconnect
+      if (reconnect()) {
+        lastReconnectAttempt = 0;
+      }
+    }
+  } else {
+    // Client connected
+
+    client.loop();
+  }
 }
